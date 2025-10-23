@@ -79,7 +79,8 @@ func (db *MockDB) CreateUserRole(ctx context.Context, ur *UserRole) (*UserRole, 
 }
 
 func main() {
-	fmt.Println("=== Factory-Go Database Seeding Example ===\n")
+	fmt.Println("=== Factory-Go Database Seeding Example ===")
+	fmt.Println()
 
 	db := &MockDB{}
 	ctx := context.Background()

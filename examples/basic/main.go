@@ -15,7 +15,8 @@ type User struct {
 }
 
 func main() {
-	fmt.Println("=== Factory-Go Basic Example ===\n")
+	fmt.Println("=== Factory-Go Basic Example ===")
+	fmt.Println()
 
 	// Create a simple user factory
 	userFactory := factory.New(func(seq int64) User {

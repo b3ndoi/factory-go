@@ -79,7 +79,8 @@ func (db *DB) CreateUser(ctx context.Context, u *User) (*User, error) {
 }
 
 func main() {
-	fmt.Println("=== Factory-Go with Faker Integration ===\n")
+	fmt.Println("=== Factory-Go with Faker Integration ===")
+	fmt.Println()
 
 	db := &DB{}
 	ctx := context.Background()

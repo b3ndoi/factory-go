@@ -97,7 +97,8 @@ func (db *DB) CreatePostTag(ctx context.Context, pt *PostTag) (*PostTag, error) 
 }
 
 func main() {
-	fmt.Println("=== Factory-Go Complete App Example ===\n")
+	fmt.Println("=== Factory-Go Complete App Example ===")
+	fmt.Println()
 
 	db := NewDB()
 	ctx := context.Background()
@@ -196,7 +197,8 @@ func main() {
 
 	// === Comprehensive Blog Application Seeding ===
 
-	fmt.Println("🎯 Seeding a Complete Blog Application\n")
+	fmt.Println("🎯 Seeding a Complete Blog Application")
+	fmt.Println()
 
 	// STEP 1: Create Tags (needed first for HasAttached later)
 	fmt.Println("1. Creating blog tags...")
@@ -208,7 +210,8 @@ func main() {
 		}
 		fmt.Print(tag.Name)
 	}
-	fmt.Println("\n")
+	fmt.Println()
+	fmt.Println()
 
 	// STEP 2: Create Users with different roles (using Sequence)
 	fmt.Println("2. Creating users with different subscription plans...")

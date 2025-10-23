@@ -28,7 +28,8 @@ type UserResponse struct {
 }
 
 func main() {
-	fmt.Println("=== Factory-Go API Testing Example ===\n")
+	fmt.Println("=== Factory-Go API Testing Example ===")
+	fmt.Println()
 
 	// Create factory with API-specific fields
 	requestFactory := factory.New(func(seq int64) UserRequest {
