@@ -5,8 +5,8 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/b3ndoi/factory-go.svg)](https://pkg.go.dev/github.com/b3ndoi/factory-go)
 [![Go Report Card](https://goreportcard.com/badge/github.com/b3ndoi/factory-go)](https://goreportcard.com/report/github.com/b3ndoi/factory-go)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Tests](https://img.shields.io/badge/tests-60%20passing-brightgreen)](factory/factory_test.go)
-[![Coverage](https://img.shields.io/badge/coverage-89%25-brightgreen)](factory/factory_test.go)
+[![Tests](https://img.shields.io/badge/tests-60%20passing-brightgreen)](https://github.com/b3ndoi/factory-go/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/badge/coverage-89%25-brightgreen)](https://github.com/b3ndoi/factory-go/actions/workflows/ci.yml)
 
 **Type-safe factories for tests and seed data with Laravel-inspired ergonomics.**
 
@@ -104,6 +104,23 @@ Check out the `/examples` directory for comprehensive examples:
 - **[faker_integration/](examples/faker_integration)** - Realistic data with faker
 
 Each example is runnable: `cd examples/basic && go run main.go`
+
+## Imports Used in Snippets
+
+```go
+import (
+    "bytes"
+    "context"
+    "fmt"
+    "log"
+    "net/http"
+    "strings"
+    "time"
+    
+    "github.com/b3ndoi/factory-go/factory"
+    "github.com/brianvoe/gofakeit/v6"  // Optional: for realistic fake data
+)
+```
 
 ## Core Concepts
 
@@ -840,7 +857,7 @@ userFactory := factory.New(func(seq int64) User {
 
 ### Hook Execution Order
 
-When calling `Create()`:
+When calling `Create()` (hooks run **synchronously** per item):
 1. `Make()` - Build object with traits
 2. **BeforeCreate hooks** - Run in order (can return error)
 3. **Persist** - Save to database
