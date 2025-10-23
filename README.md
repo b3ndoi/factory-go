@@ -14,7 +14,7 @@
 - **Built-in relationships** - For, Has, HasAttached, Recycle for all relationship patterns
 - **JSON/Raw for API tests** - Direct JSON output, separate API vs domain fields with WithRawDefaults
 
-**[Quick Start](#installation--quick-start) • [Concepts](#core-concepts) • [Sequences](#sequence---cycling-through-attributes) • [States](#named-states) • [Raw/JSON](#raw-attributes--json-api-testing) • [Relationships](#relationships) • [Hooks](#lifecycle-hooks) • [Thread Safety](#thread-safety) • [API Reference](#api-reference)**
+**[Quick Start](#installation--quick-start) • [Concepts](#core-concepts) • [Performance](#performance) • [Sequences](#sequence---cycling-through-attributes) • [States](#named-states) • [Raw/JSON](#raw-attributes--json-api-testing) • [Relationships](#relationships) • [Hooks](#lifecycle-hooks) • [API Reference](#api-reference)**
 
 ---
 
@@ -144,6 +144,29 @@ import (
 - 💡 **Best practice** - For parallel tests, use `Clone()` per test or `ResetSequence()` in setup for predictable sequences
 
 **Note:** All configuration methods return a new factory; internal collections (slices, maps) are copied so previously created factories remain safe to use concurrently.
+
+## Performance
+
+Factory-Go is designed for test data generation and performs excellently:
+
+| Operation | Time/op | Notes |
+|-----------|---------|-------|
+| `Make()` | ~160ns | 6M+ items/sec |
+| `MakeMany(10)` | ~2.2μs | Linear scaling |
+| `MakeMany(100)` | ~18μs | Linear scaling |
+| `Create()` | ~237ns | With persistence |
+| `Clone()` | ~75ns | Very cheap |
+| `RawJSON()` | ~351ns | With marshaling |
+
+**Key characteristics:**
+- ✅ **Linear scaling** - MakeMany(100) = 10x MakeMany(10)
+- ✅ **Minimal overhead** - States, sequences add <10ns
+- ✅ **Thread-safe** - Parallel execution scales well
+- ✅ **Efficient cloning** - Only 75ns for deep copy
+
+**vs Manual helpers:** Factory-Go is ~27% slower but provides 35+ features. The small overhead is well worth the type safety, reusability, and developer experience.
+
+See [BENCHMARKS.md](BENCHMARKS.md) for detailed results and profiling guide.
 
 ## Quick Reference
 
