@@ -8,7 +8,13 @@
 [![Tests](https://img.shields.io/badge/tests-60%20passing-brightgreen)](factory/factory_test.go)
 [![Coverage](https://img.shields.io/badge/coverage-89%25-brightgreen)](factory/factory_test.go)
 
-A Laravel-inspired factory pattern for Go, providing a flexible and type-safe way to build test data with defaults, traits, and optional persistence.
+**Type-safe factories for tests and seed data with Laravel-inspired ergonomics.**
+
+- **Type-safe with generics** - No `interface{}` or type assertions, full compile-time checking
+- **Built-in relationships** - For, Has, HasAttached, Recycle for all relationship patterns
+- **JSON/Raw for API tests** - Direct JSON output, separate API vs domain fields with WithRawDefaults
+
+---
 
 ## Features
 
@@ -24,10 +30,35 @@ A Laravel-inspired factory pattern for Go, providing a flexible and type-safe wa
 - 📦 **JSON support** - Direct JSON output for API testing
 - 🔗 **Relationships** - Built-in support for model relationships
 
-## Installation
+## Installation & Quick Start
 
 ```bash
+# Install
 go get github.com/b3ndoi/factory-go
+```
+
+```go
+// Import
+import "github.com/b3ndoi/factory-go/factory"
+
+// Define your model
+type User struct {
+    ID    string
+    Name  string
+    Email string
+}
+
+// Create a factory
+userFactory := factory.New(func(seq int64) User {
+    return User{
+        Name:  fmt.Sprintf("User %d", seq),
+        Email: fmt.Sprintf("user%d@example.com", seq),
+    }
+})
+
+// Use it
+user := userFactory.Make()                    // Single in-memory
+users := userFactory.Count(10).Make()         // Multiple items
 ```
 
 ## 📖 Examples
@@ -41,6 +72,26 @@ Check out the `/examples` directory for comprehensive examples:
 - **[faker_integration/](examples/faker_integration)** - Realistic data with faker
 
 Each example is runnable: `cd examples/basic && go run main.go`
+
+## Core Concepts
+
+- **Defaults** - Base values for all items (`WithDefaults` for domain, `WithRawDefaults` for API-only fields)
+- **Traits** - Modifications applied globally (`WithTraits`) or per-call (`Make(trait)`)
+- **States** - Named, reusable configurations (`DefineState("admin", trait)`, then `.State("admin")`)
+- **Sequences** - Cycle through values for variety (`Sequence(trait1, trait2)` alternates per item)
+- **Raw/RawJSON** - Build without persistence, with JSON output for API testing
+- **Create/Persist** - Save to database with `WithPersist`, hooks with `BeforeCreate/AfterCreate`
+- **Relationships** - `For` (each child gets own parent), `Recycle` (shared parent), `Has` (parent with children), `HasAttached` (many-to-many with pivot)
+- **Clone/Reset** - `Clone()` deep-copies factory, `ResetSequence()` resets counter for test isolation
+
+### Thread Safety
+
+**A single factory instance is safe to use across goroutines.**
+
+- ✅ **Sequence counter** - Uses `sync/atomic` for thread-safe increments
+- ✅ **Read-only fields** - All factory configuration (traits, states, hooks) are read-only after setup
+- ⚠️ **Hooks** - Your `BeforeCreate`/`AfterCreate` hooks must be thread-safe if accessing shared state
+- 💡 **Recommendation** - For parallel test execution, use `Clone()` per test or `ResetSequence()` in test setup for predictable sequences
 
 ## Quick Reference
 
@@ -250,20 +301,18 @@ admin := userFactory.Make(func(u *User) {
 
 Traits are applied in a specific order, allowing for flexible overrides:
 
-### For Make() and Create():
-1. **Base struct** (from `makeFn`)
-2. **Defaults** (from `WithDefaults`) - for faker/default values
-3. **Global traits** (from `WithTraits`) - for common modifications
-4. **Sequence** (from `Sequence`) - cycles through on each item
-5. **Per-call traits** (passed to `Make`/`Create`) - for specific customizations
+| Priority | Make/Create | Raw/RawJSON | Source | Purpose |
+|----------|-------------|-------------|--------|---------|
+| 1 | ✅ | ✅ | `makeFn` | Base struct |
+| 2 | ✅ | ✅ | `WithDefaults` | Faker/default values |
+| 3 | ❌ | ✅ | `WithRawDefaults` | API-only fields (passwords, tokens) |
+| 4 | ✅ | ✅ | `WithTraits` | Global modifications |
+| 5 | ✅ | ✅ | `Sequence` | Cycle through patterns |
+| 6 | ✅ | ✅ | `State` | Apply named states |
+| 7 | ✅ | ✅ | Per-call traits | Specific customizations |
+| 8 | ✅ | ✅ | `Tap` | Inspect only (doesn't modify) |
 
-### For Raw() and RawJSON():
-1. **Base struct** (from `makeFn`)
-2. **Defaults** (from `WithDefaults`) - for faker/default values
-3. **RawDefaults** (from `WithRawDefaults`) - **only for Raw/RawJSON**
-4. **Global traits** (from `WithTraits`) - for common modifications
-5. **Sequence** (from `Sequence`) - cycles through on each item
-6. **Per-call traits** (passed to `Raw`/`RawJSON`) - for specific customizations
+**Key insight:** Later steps override earlier ones. Per-call traits always win.
 
 ```go
 userFactory := factory.New(func(seq int64) User {
@@ -444,6 +493,15 @@ The `CountedFactory` returned by `Count()` has these methods:
 ## Relationships
 
 Factory-Go provides powerful relationship helpers for all common database relationship patterns.
+
+### Quick Decision Guide
+
+| Pattern | Function | When to Use | Example |
+|---------|----------|-------------|---------|
+| Each child needs different parent | `For()` | Posts by different authors | 10 posts → 10 users |
+| Children share same parent | `Recycle()` / `ForModel()` | Posts by one author | 10 posts → 1 user |
+| Create parent with children | `Has()` | User with posts | 1 user → 5 posts |
+| Many-to-many with pivot | `HasAttached()` | User with roles | 1 user → 3 roles + 3 pivots |
 
 ### For() - Belongs To (Each Item Gets Its Own Parent)
 
