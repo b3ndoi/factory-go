@@ -20,7 +20,7 @@
 
 ## Why Generics Over Reflection?
 
-Factory-Go uses **Go generics** (Go 1.18+) instead of reflection like older libraries:
+Factory-Go uses **Go generics** (Go 1.21+) instead of reflection like older libraries:
 
 | Advantage | Generics | Reflection (old libs) |
 |-----------|----------|----------------------|
@@ -126,16 +126,7 @@ Each example is runnable: `cd examples/basic && go run main.go`
 - ⚠️ **Hooks caveat** - Your `BeforeCreate`/`AfterCreate` hooks must be thread-safe if accessing shared state
 - 💡 **Best practice** - For parallel tests, use `Clone()` per test or `ResetSequence()` in setup for predictable sequences
 
-### Why Generics Over Reflection?
-
-Factory-Go uses **Go generics** instead of reflection (like older libraries):
-
-- ✅ **Compile-time type safety** - Errors caught at compile time, not runtime
-- ✅ **No type assertions** - `userFactory.Make()` returns `User`, not `interface{}`  
-- ✅ **Better performance** - No reflection overhead
-- ✅ **IDE autocomplete** - Full IntelliSense support
-
-**Older libraries** (like bluele/factory) use `interface{}` and require type assertions. Generics eliminate this entirely.
+**Note:** All configuration methods return a new factory; internal collections (slices, maps) are copied so previously created factories remain safe to use concurrently.
 
 ## Quick Reference
 
@@ -172,7 +163,7 @@ user, roles, pivots := factory.HasAttached(userF, roleF, pivotF, 3, linkFn).Must
 
 // Utilities
 factory.Clone()          // Deep copy with reset sequence
-factory.ResetSequence()  // Reset to seq=1
+factory.ResetSequence()  // Reset sequence counter to 0 (next build uses seq=1)
 ```
 
 ## Quick Start
@@ -261,8 +252,10 @@ factory := factory.New(makeFn).Sequence(
 
 u1 := factory.Make()                                      // Role: "admin" (sequence step 1)
 u2 := factory.Make(func(u *User) { u.Role = "guest" })   // Role: "guest" (override; sequence still advances)
-u3 := factory.Make()                                      // Role: "admin" (sequence step 3, cycles back)
+u3 := factory.Make()                                      // Role: "admin" (sequence step 3, cycles back to first item)
 ```
+
+**With a 2-item sequence, the 3rd build cycles back to the 1st item** (3 % 2 = 1, which maps to index 0).
 
 ## Named States
 
@@ -417,19 +410,24 @@ rawUser := userFactory.Raw() // Password: "test-password-123"
 Get JSON directly for HTTP tests:
 
 ```go
-// Single object as JSON
-jsonData, err := userFactory.RawJSON()
-// POST to API: {"name":"User 1","email":"user1@example.com","password":"test-password-123"}
+import (
+    "bytes"
+    "net/http"
+)
+
+// Generate JSON payload
+jsonData := userFactory.MustRawJSON()
+
+// Use in HTTP request
+req, _ := http.NewRequest(http.MethodPost, "/api/register", bytes.NewReader(jsonData))
+req.Header.Set("Content-Type", "application/json")
+resp, _ := http.DefaultClient.Do(req)
 
 // Multiple objects as JSON array
-jsonArray, err := userFactory.RawManyJSON(10)
-// Bulk API request
-
-// Works with Count() fluent API
-jsonData, err := userFactory.Count(5).RawJSON()
+jsonArray := userFactory.Count(10).MustRawJSON()
 
 // Works with states
-jsonData, err := userFactory.State("admin").RawJSON()
+adminJSON := userFactory.State("admin").MustRawJSON()
 ```
 
 ### Real-World Example
@@ -533,7 +531,8 @@ users = userFactory.Times(3).Make()
 The `CountedFactory` returned by `Count()` has these methods:
 - `Make(...traits) []T` - Build count items in-memory
 - `Create(ctx, ...traits) ([]*T, error)` - Build and persist count items
-- `Raw(...traits) []T` - Alias for Make
+- `Raw(...traits) []T` - Build count items **with `rawDefaults` applied**
+- `RawJSON(...traits) ([]byte, error)` - Build count items and return JSON array
 - `State(name) *CountedFactory[T]` - Apply a named state (chainable)
 
 ## Relationships
@@ -846,6 +845,12 @@ When calling `Create()`:
 2. **BeforeCreate hooks** - Run in order (can return error)
 3. **Persist** - Save to database
 4. **AfterCreate hooks** - Run in order (can return error)
+
+**Hook Contracts:**
+- ✅ **BeforeCreate** - May mutate object; returning error aborts persistence
+- ✅ **Persist** - Should be idempotent if your tests may retry on transient failures
+- ✅ **AfterCreate** - Runs only if persist succeeds; errors bubble up to caller
+- ✅ **Execution order** - Multiple hooks run in registration order
 
 ## Complete Example with Faker and Named States
 
