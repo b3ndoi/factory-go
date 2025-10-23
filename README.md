@@ -93,6 +93,17 @@ Each example is runnable: `cd examples/basic && go run main.go`
 - ⚠️ **Hooks** - Your `BeforeCreate`/`AfterCreate` hooks must be thread-safe if accessing shared state
 - 💡 **Recommendation** - For parallel test execution, use `Clone()` per test or `ResetSequence()` in test setup for predictable sequences
 
+### Why Generics Over Reflection?
+
+Factory-Go uses **Go generics** instead of reflection (like older libraries):
+
+- ✅ **Compile-time type safety** - Errors caught at compile time, not runtime
+- ✅ **No type assertions** - `userFactory.Make()` returns `User`, not `interface{}`  
+- ✅ **Better performance** - No reflection overhead
+- ✅ **IDE autocomplete** - Full IntelliSense support
+
+**Older libraries** (like bluele/factory) use `interface{}` and require type assertions. Generics eliminate this entirely.
+
 ## Quick Reference
 
 ```go
