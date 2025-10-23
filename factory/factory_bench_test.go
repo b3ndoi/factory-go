@@ -370,4 +370,3 @@ func BenchmarkClonePerGoroutine(b *testing.B) {
 		}
 	})
 }
-
