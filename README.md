@@ -14,6 +14,31 @@
 - **Built-in relationships** - For, Has, HasAttached, Recycle for all relationship patterns
 - **JSON/Raw for API tests** - Direct JSON output, separate API vs domain fields with WithRawDefaults
 
+**[Quick Start](#installation--quick-start) • [Concepts](#core-concepts) • [Sequences](#sequence---cycling-through-attributes) • [States](#named-states) • [Raw/JSON](#raw-attributes--json-api-testing) • [Relationships](#relationships) • [Hooks](#lifecycle-hooks) • [Thread Safety](#thread-safety) • [API Reference](#api-reference)**
+
+---
+
+## Why Generics Over Reflection?
+
+Factory-Go uses **Go generics** (Go 1.18+) instead of reflection like older libraries:
+
+| Advantage | Generics | Reflection (old libs) |
+|-----------|----------|----------------------|
+| Type safety | ✅ Compile-time | ❌ Runtime only |
+| Return types | `User` directly | `interface{}` + cast |
+| Performance | ✅ No overhead | ❌ Reflection penalty |
+| IDE support | ✅ Full autocomplete | ❌ Limited |
+| Error detection | ✅ At compile time | ❌ At runtime |
+
+**Example comparison:**
+```go
+// Old libraries (bluele/factory)
+user := factory.Create("User").(*User)  // Type assertion required!
+
+// Factory-Go
+user := userFactory.Make()  // Type-safe, no assertions
+```
+
 ---
 
 ## Features
@@ -32,10 +57,17 @@
 
 ## Installation & Quick Start
 
+**Requirements:** Go 1.21+ (uses generics)
+
 ```bash
-# Install
-go get github.com/b3ndoi/factory-go
+# Install latest version
+go get github.com/b3ndoi/factory-go@latest
+
+# Or specific version
+go get github.com/b3ndoi/factory-go@v1.0.0
 ```
+
+**Versioning:** Factory-Go follows [Semantic Versioning](https://semver.org/). Breaking changes only in major versions (v2.x.x). See [CHANGELOG.md](CHANGELOG.md) for version history.
 
 ```go
 // Import
@@ -86,12 +118,13 @@ Each example is runnable: `cd examples/basic && go run main.go`
 
 ### Thread Safety
 
-**A single factory instance is safe to use across goroutines.**
+**All configuration methods return a new factory instance; existing instances are immutable and safe for concurrent use.**
 
-- ✅ **Sequence counter** - Uses `sync/atomic` for thread-safe increments
-- ✅ **Read-only fields** - All factory configuration (traits, states, hooks) are read-only after setup
-- ⚠️ **Hooks** - Your `BeforeCreate`/`AfterCreate` hooks must be thread-safe if accessing shared state
-- 💡 **Recommendation** - For parallel test execution, use `Clone()` per test or `ResetSequence()` in test setup for predictable sequences
+- ✅ **Immutable configuration** - `WithDefaults`, `State`, `Sequence`, etc. return new factories; originals unchanged
+- ✅ **Sequence counter** - Uses `sync/atomic` for thread-safe increments across goroutines
+- ✅ **Read-only after setup** - Once configured, factory internals are read-only
+- ⚠️ **Hooks caveat** - Your `BeforeCreate`/`AfterCreate` hooks must be thread-safe if accessing shared state
+- 💡 **Best practice** - For parallel tests, use `Clone()` per test or `ResetSequence()` in setup for predictable sequences
 
 ### Why Generics Over Reflection?
 
@@ -218,7 +251,7 @@ orders := statusFactory.MakeMany(10)
 
 ### Sequence with Per-Call Overrides
 
-Per-call traits always override sequence values:
+Per-call traits always override sequence values. **Note:** Sequences advance on every build, even when overridden.
 
 ```go
 factory := factory.New(makeFn).Sequence(
@@ -226,9 +259,9 @@ factory := factory.New(makeFn).Sequence(
     func(u *User) { u.Role = "user" },
 )
 
-u1 := factory.Make()                                      // Role: "admin" (from sequence)
-u2 := factory.Make(func(u *User) { u.Role = "guest" })   // Role: "guest" (override)
-u3 := factory.Make()                                      // Role: "admin" (sequence continues)
+u1 := factory.Make()                                      // Role: "admin" (sequence step 1)
+u2 := factory.Make(func(u *User) { u.Role = "guest" })   // Role: "guest" (override; sequence still advances)
+u3 := factory.Make()                                      // Role: "admin" (sequence step 3, cycles back)
 ```
 
 ## Named States
@@ -323,7 +356,9 @@ Traits are applied in a specific order, allowing for flexible overrides:
 | 7 | ✅ | ✅ | Per-call traits | Specific customizations |
 | 8 | ✅ | ✅ | `Tap` | Inspect only (doesn't modify) |
 
-**Key insight:** Later steps override earlier ones. Per-call traits always win.
+**Key insights:** 
+- Later steps override earlier ones. Per-call traits always win.
+- Sequence advances on every build (including Make, Raw, Create), regardless of states or overrides.
 
 ```go
 userFactory := factory.New(func(seq int64) User {
